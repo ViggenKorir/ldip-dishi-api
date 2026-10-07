@@ -1,0 +1,58 @@
+# version: '3.8'
+services:
+  nest-db:
+    image: postgres:13
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root123
+      POSTGRES_DB: nest
+    volumes:
+      - nest_db_data:/var/lib/postgresql/data
+    networks:
+      - nest_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nest -h localhost']
+      interval: 10s # How often to run the check
+      timeout: 5s # How long to wait for the check to return
+      retries: 5 # How many times to retry before marking as unhealthy
+      start_period: 60s # Optional: grace period for startup before failures count
+  # nest-api:
+  #   build:
+  #     context: .
+  #     dockerfile: dockerfile
+  #     target: development
+  #   ports:
+  #     - '4000:4000'
+  #     - '9229:9229'
+  #   environment:
+  #     DATABASE_URL: 'postgresql://root:root123@nest-db:5432/nest?schema=public'
+  #     JWT_SECRET: 'super-secret'
+  #     NODE_ENV: development
+  #     CHOKIDAR_USEPOLLING: 'true'
+  #   depends_on:
+  #     nest-db:
+  #       condition: service_healthy
+  #   networks:
+  #     - nest_network
+  #   volumes:
+  #     - ./src:/usr/src/app/src
+  #     - ./prisma:/usr/src/app/prisma # Important for 'migrate dev' to see schema changes
+  #     - ./package.json:/usr/src/app/package.json
+  #     - ./package-lock.json:/usr/src/app/package-lock.json
+  #     - ./tsconfig.json:/usr/src/app/tsconfig.json
+  #     - ./nest-cli.json:/usr/src/app/nest-cli.json
+  #   # Option A: Apply migrations and seed, then start dev server
+  #   # Using "migrate deploy" is generally safer for automated startup.
+  #   # If you use "migrate dev", be aware it might try to reset the DB or prompt.
+  #   command: sh -c "echo 'Waiting for DB to be ready...' && sleep 5 && echo 'Attempting to apply migrations...' && npx prisma migrate deploy && echo 'Migrations done' && echo 'Attempting to seed database...' && npx prisma db seed &&  echo 'Starting development server...' && npm run start:dev"
+
+  #   # Option B (if you truly want `migrate dev` on startup, knowing the risks):
+  #   # command: >
+  #   #  sh -c "npx prisma migrate dev --skip-generate && npx prisma db seed && npm run start:dev"
+networks:
+  nest_network:
+
+volumes:
+  nest_db_data: {}

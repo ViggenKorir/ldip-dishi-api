@@ -1,0 +1,34 @@
+After cloning the repository run
+> npm install
+
+Assuming that you have docker set up, run
+> docker-compose -f docker-compose.yml up -d (Windows)
+> docker compose up --build -d //this builds the app too
+> docker compose -f docker-compose.yml up -d (Linux)
+
+Installing prisma
+npm install prisma@latest @prisma/client@latest @prisma/adapter-pg pg
+
+
+To connect prisma to the database, open a new terminal and run
+> npx prisma studio
+This connects the database to the url in the .env file
+Also opens a page in the browser
+
+To generate prisma client, run
+> npx prisma generate
+
+To perform migrations on the database, you run
+> npx prisma migrate dev
+
+To drop the development database, you run
+> npx prisma migrate reset
+
+> npm run start:dev
+This starts the development server and watches out for changes
+
+To create a module in nest,we run
+> nest g module module_name
+
+To seed the database, we run ref "https://www.prisma.io/docs/orm/prisma-migrate/workflows/seeding"
+> npx prisma db seed
