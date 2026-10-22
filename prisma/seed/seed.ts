@@ -22,6 +22,7 @@ async function seed() {
 
   /** Clear existing data to prevent duplicates*/
   await prisma.$transaction([
+    prisma.project.deleteMany(),
     prisma.bookmark.deleteMany(),
     prisma.user.deleteMany(),
   ]);
@@ -118,6 +119,35 @@ async function seed() {
   });
 
   console.log('data seeded successfully!');
+
+  await prisma.project.createMany({
+    data: [
+      {
+        name: 'Website redesign',
+        description: 'Refresh the marketing site with the new brand.',
+        status: 'active',
+        updatedAt: new Date('2026-09-28T10:00:00.000Z'),
+      },
+      {
+        name: 'Mobile app',
+        description: 'Ship the first version of the iOS and Android apps.',
+        status: 'active',
+        updatedAt: new Date('2026-09-20T10:00:00.000Z'),
+      },
+      {
+        name: 'Billing migration',
+        description: 'Move subscriptions to the new payment provider.',
+        status: 'paused',
+        updatedAt: new Date('2026-08-14T10:00:00.000Z'),
+      },
+      {
+        name: 'Onboarding emails',
+        description: 'A welcome email sequence for new sign-ups.',
+        status: 'done',
+        updatedAt: new Date('2026-07-02T10:00:00.000Z'),
+      },
+    ],
+  });
 }
 
 seed()

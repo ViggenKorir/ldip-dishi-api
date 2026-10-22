@@ -17,18 +17,26 @@ import type * as Prisma from "./prismaNamespace"
 
 const config: runtime.GetPrismaClientConfig = {
   "previewFeatures": [],
-  "clientVersion": "7.3.0",
-  "engineVersion": "9d6ad21cbbceab97458517b147a6a09ff43aa735",
+  "clientVersion": "7.10.1",
+  "engineVersion": "d1b3f377ca835d73fd50954a5e22128b9ebdd6b8",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"./generated\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\n//Declaring models\nmodel User {\n  id String @id @default(uuid())\n\n  email     String  @unique\n  hash      String\n  firstName String?\n  lastName  String?\n\n  bookmarks Bookmark[]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // @@map(\"users\")\n}\n\nmodel Bookmark {\n  id String @id @default(uuid())\n\n  title       String\n  description String?\n  link        String\n\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // @@map(\"bookmarks\")\n}\n",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"./generated\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\n//Declaring models\nmodel User {\n  id String @id @default(uuid())\n\n  email     String  @unique\n  // Null for accounts created through a social provider (Supabase OAuth);\n  // password accounts always store an argon2 hash.\n  hash      String?\n  firstName String?\n  lastName  String?\n\n  bookmarks Bookmark[]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // @@map(\"users\")\n}\n\nmodel Bookmark {\n  id String @id @default(uuid())\n\n  title       String\n  description String?\n  link        String\n\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // @@map(\"bookmarks\")\n}\n\nenum ProjectStatus {\n  active\n  paused\n  done\n}\n\nmodel Project {\n  id          String        @id @default(uuid())\n  name        String\n  description String\n  status      ProjectStatus\n  updatedAt   DateTime      @updatedAt\n  createdAt   DateTime      @default(now())\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
     "types": {}
+  },
+  "parameterizationSchema": {
+    "strings": [],
+    "graph": ""
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"hash\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"firstName\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"lastName\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bookmarks\",\"kind\":\"object\",\"type\":\"Bookmark\",\"relationName\":\"BookmarkToUser\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null},\"Bookmark\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"link\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"BookmarkToUser\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"hash\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"firstName\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"lastName\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bookmarks\",\"kind\":\"object\",\"type\":\"Bookmark\",\"relationName\":\"BookmarkToUser\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null,\"schema\":null},\"Bookmark\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"link\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"BookmarkToUser\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null,\"schema\":null},\"Project\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"ProjectStatus\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null,\"schema\":null}},\"enums\":{},\"types\":{}}")
+config.parameterizationSchema = {
+  strings: JSON.parse("[\"where\",\"orderBy\",\"cursor\",\"user\",\"bookmarks\",\"_count\",\"User.findUnique\",\"User.findUniqueOrThrow\",\"User.findFirst\",\"User.findFirstOrThrow\",\"User.findMany\",\"data\",\"User.createOne\",\"User.createMany\",\"User.createManyAndReturn\",\"User.updateOne\",\"User.updateMany\",\"User.updateManyAndReturn\",\"create\",\"update\",\"User.upsertOne\",\"User.deleteOne\",\"User.deleteMany\",\"having\",\"_min\",\"_max\",\"User.groupBy\",\"User.aggregate\",\"Bookmark.findUnique\",\"Bookmark.findUniqueOrThrow\",\"Bookmark.findFirst\",\"Bookmark.findFirstOrThrow\",\"Bookmark.findMany\",\"Bookmark.createOne\",\"Bookmark.createMany\",\"Bookmark.createManyAndReturn\",\"Bookmark.updateOne\",\"Bookmark.updateMany\",\"Bookmark.updateManyAndReturn\",\"Bookmark.upsertOne\",\"Bookmark.deleteOne\",\"Bookmark.deleteMany\",\"Bookmark.groupBy\",\"Bookmark.aggregate\",\"Project.findUnique\",\"Project.findUniqueOrThrow\",\"Project.findFirst\",\"Project.findFirstOrThrow\",\"Project.findMany\",\"Project.createOne\",\"Project.createMany\",\"Project.createManyAndReturn\",\"Project.updateOne\",\"Project.updateMany\",\"Project.updateManyAndReturn\",\"Project.upsertOne\",\"Project.deleteOne\",\"Project.deleteMany\",\"Project.groupBy\",\"Project.aggregate\",\"AND\",\"OR\",\"NOT\",\"id\",\"name\",\"description\",\"ProjectStatus\",\"status\",\"updatedAt\",\"createdAt\",\"equals\",\"in\",\"notIn\",\"lt\",\"lte\",\"gt\",\"gte\",\"not\",\"contains\",\"startsWith\",\"endsWith\",\"title\",\"link\",\"userId\",\"email\",\"hash\",\"firstName\",\"lastName\",\"every\",\"some\",\"none\",\"is\",\"isNot\",\"connectOrCreate\",\"upsert\",\"createMany\",\"set\",\"disconnect\",\"delete\",\"connect\",\"updateMany\",\"deleteMany\"]"),
+  graph: "jQEaMAsEAABlACA8AABjADA9AAAJABA-AABjADA_AQAAAAFEQABcACFFQABcACFUAQAAAAFVAQBkACFWAQBkACFXAQBkACEBAAAAAQAgCwMAAGcAIDwAAGYAMD0AAAMAED4AAGYAMD8BAFoAIUEBAGQAIURAAFwAIUVAAFwAIVEBAFoAIVIBAFoAIVMBAFoAIQIDAACHAQAgQQAAbgAgCwMAAGcAIDwAAGYAMD0AAAMAED4AAGYAMD8BAAAAAUEBAGQAIURAAFwAIUVAAFwAIVEBAFoAIVIBAFoAIVMBAFoAIQMAAAADACABAAAEADACAAAFACABAAAAAwAgAQAAAAEAIAsEAABlACA8AABjADA9AAAJABA-AABjADA_AQBaACFEQABcACFFQABcACFUAQBaACFVAQBkACFWAQBkACFXAQBkACEEBAAAhgEAIFUAAG4AIFYAAG4AIFcAAG4AIAMAAAAJACABAAAKADACAAABACADAAAACQAgAQAACgAwAgAAAQAgAwAAAAkAIAEAAAoAMAIAAAEAIAgEAACFAQAgPwEAAAABREAAAAABRUAAAAABVAEAAAABVQEAAAABVgEAAAABVwEAAAABAQsAAA4AIAc_AQAAAAFEQAAAAAFFQAAAAAFUAQAAAAFVAQAAAAFWAQAAAAFXAQAAAAEBCwAAEAAwAQsAABAAMAgEAAB4ACA_AQBrACFEQABtACFFQABtACFUAQBrACFVAQByACFWAQByACFXAQByACECAAAAAQAgCwAAEwAgBz8BAGsAIURAAG0AIUVAAG0AIVQBAGsAIVUBAHIAIVYBAHIAIVcBAHIAIQIAAAAJACALAAAVACACAAAACQAgCwAAFQAgAwAAAAEAIBIAAA4AIBMAABMAIAEAAAABACABAAAACQAgBgUAAHUAIBgAAHcAIBkAAHYAIFUAAG4AIFYAAG4AIFcAAG4AIAo8AABiADA9AAAcABA-AABiADA_AQBPACFEQABRACFFQABRACFUAQBPACFVAQBeACFWAQBeACFXAQBeACEDAAAACQAgAQAAGwAwFwAAHAAgAwAAAAkAIAEAAAoAMAIAAAEAIAEAAAAFACABAAAABQAgAwAAAAMAIAEAAAQAMAIAAAUAIAMAAAADACABAAAEADACAAAFACADAAAAAwAgAQAABAAwAgAABQAgCAMAAHQAID8BAAAAAUEBAAAAAURAAAAAAUVAAAAAAVEBAAAAAVIBAAAAAVMBAAAAAQELAAAkACAHPwEAAAABQQEAAAABREAAAAABRUAAAAABUQEAAAABUgEAAAABUwEAAAABAQsAACYAMAELAAAmADAIAwAAcwAgPwEAawAhQQEAcgAhREAAbQAhRUAAbQAhUQEAawAhUgEAawAhUwEAawAhAgAAAAUAIAsAACkAIAc_AQBrACFBAQByACFEQABtACFFQABtACFRAQBrACFSAQBrACFTAQBrACECAAAAAwAgCwAAKwAgAgAAAAMAIAsAACsAIAMAAAAFACASAAAkACATAAApACABAAAABQAgAQAAAAMAIAQFAABvACAYAABxACAZAABwACBBAABuACAKPAAAXQAwPQAAMgAQPgAAXQAwPwEATwAhQQEAXgAhREAAUQAhRUAAUQAhUQEATwAhUgEATwAhUwEATwAhAwAAAAMAIAEAADEAMBcAADIAIAMAAAADACABAAAEADACAAAFACAJPAAAWQAwPQAAOAAQPgAAWQAwPwEAAAABQAEAWgAhQQEAWgAhQwAAW0MiREAAXAAhRUAAXAAhAQAAADUAIAEAAAA1ACAJPAAAWQAwPQAAOAAQPgAAWQAwPwEAWgAhQAEAWgAhQQEAWgAhQwAAW0MiREAAXAAhRUAAXAAhAAMAAAA4ACABAAA5ADACAAA1ACADAAAAOAAgAQAAOQAwAgAANQAgAwAAADgAIAEAADkAMAIAADUAIAY_AQAAAAFAAQAAAAFBAQAAAAFDAAAAQwJEQAAAAAFFQAAAAAEBCwAAPQAgBj8BAAAAAUABAAAAAUEBAAAAAUMAAABDAkRAAAAAAUVAAAAAAQELAAA_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-AABjADA_AQBaACFEQABcACFFQABcACFUAQBaACFVAQBkACFWAQBkACFXAQBkACFbAAAJACBcAAAJACAAAAABYAEAAAABAWAAAABDAgFgQAAAAAEAAAAAAWABAAAAAQUSAACJAQAgEwAAjAEAIF0AAIoBACBeAACLAQAgYwAAAQAgAxIAAIkBACBdAACKAQAgYwAAAQAgAAAACxIAAHkAMBMAAH4AMF0AAHoAMF4AAHsAMF8AAHwAIGAAAH0AMGEAAH0AMGIAAH0AMGMAAH0AMGQAAH8AMGUAAIABADAGPwEAAAABQQEAAAABREAAAAABRUAAAAABUQEAAAABUgEAAAABAgAAAAUAIBIAAIQBACADAAAABQAgEgAAhAEAIBMAAIMBACABCwAAiAEAMAsDAABnACA8AABmADA9AAADABA-AABmADA_AQAAAAFBAQBkACFEQABcACFFQABcACFRAQBaACFSAQBaACFTAQBaACECAAAABQAgCwAAgwEAIAIAAACBAQAgCwAAggEAIAo8AACAAQAwPQAAgQEAED4AAIABADA_AQBaACFBAQBkACFEQABcACFFQABcACFRAQBaACFSAQBaACFTAQBaACEKPAAAgAEAMD0AAIEBABA-AACAAQAwPwEAWgAhQQEAZAAhREAAXAAhRUAAXAAhUQEAWgAhUgEAWgAhUwEAWgAhBj8BAGsAIUEBAHIAIURAAG0AIUVAAG0AIVEBAGsAIVIBAGsAIQY_AQBrACFBAQByACFEQABtACFFQABtACFRAQBrACFSAQBrACEGPwEAAAABQQEAAAABREAAAAABRUAAAAABUQEAAAABUgEAAAABBBIAAHkAMF0AAHoAMF8AAHwAIGMAAH0AMAAEBAAAhgEAIFUAAG4AIFYAAG4AIFcAAG4AIAY_AQAAAAFBAQAAAAFEQAAAAAFFQAAAAAFRAQAAAAFSAQAAAAEHPwEAAAABREAAAAABRUAAAAABVAEAAAABVQEAAAABVgEAAAABVwEAAAABAgAAAAEAIBIAAIkBACADAAAACQAgEgAAiQEAIBMAAI0BACAJAAAACQAgCwAAjQEAID8BAGsAIURAAG0AIUVAAG0AIVQBAGsAIVUBAHIAIVYBAHIAIVcBAHIAIQc_AQBrACFEQABtACFFQABtACFUAQBrACFVAQByACFWAQByACFXAQByACECBAYCBQADAQMAAQEEBwAAAAADBQAIGAAJGQAKAAAAAwUACBgACRkACgEDAAEBAwABAwUADxgAEBkAEQAAAAMFAA8YABAZABEAAAADBQAXGAAYGQAZAAAAAwUAFxgAGBkAGQYCAQcIAQgLAQkMAQoNAQwPAQ0RBA4SBQ8UARAWBBEXBhQYARUZARYaBBodBxseCxwfAh0gAh4hAh8iAiAjAiElAiInBCMoDCQqAiUsBCYtDScuAigvAikwBCozDis0Eiw2Ey03Ey46Ey87EzA8EzE-EzJABDNBFDRDEzVFBDZGFTdHEzhIEzlJBDpMFjtNGg"
+}
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -59,7 +67,9 @@ export interface PrismaClientConstructor {
    * Type-safe database client for TypeScript
    * @example
    * ```
-   * const prisma = new PrismaClient()
+   * const prisma = new PrismaClient({
+   *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
+   * })
    * // Fetch zero or more Users
    * const users = await prisma.user.findMany()
    * ```
@@ -72,7 +82,7 @@ export interface PrismaClientConstructor {
     LogOpts extends LogOptions<Options> = LogOptions<Options>,
     OmitOpts extends Prisma.PrismaClientOptions['omit'] = Options extends { omit: infer U } ? U : Prisma.PrismaClientOptions['omit'],
     ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
-  >(options: Prisma.Subset<Options, Prisma.PrismaClientOptions> ): PrismaClient<LogOpts, OmitOpts, ExtArgs>
+  >(options: Prisma.PrismaClientConstructorArgs<Options>): PrismaClient<LogOpts, OmitOpts, ExtArgs>
 }
 
 /**
@@ -81,7 +91,9 @@ export interface PrismaClientConstructor {
  * Type-safe database client for TypeScript
  * @example
  * ```
- * const prisma = new PrismaClient()
+ * const prisma = new PrismaClient({
+ *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
+ * })
  * // Fetch zero or more Users
  * const users = await prisma.user.findMany()
  * ```
@@ -91,7 +103,7 @@ export interface PrismaClientConstructor {
 
 export interface PrismaClient<
   in LogOpts extends Prisma.LogLevel = never,
-  in out OmitOpts extends Prisma.PrismaClientOptions['omit'] = undefined,
+  in out OmitOpts extends Prisma.PrismaClientOptions['omit'] = Prisma.PrismaClientOptions['omit'],
   in out ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > {
   [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
@@ -166,9 +178,9 @@ export interface PrismaClient<
    * ])
    * ```
    * 
-   * Read more in our [docs](https://www.prisma.io/docs/concepts/components/prisma-client/transactions).
+   * Read more in our [docs](https://www.prisma.io/docs/orm/prisma-client/queries/transactions).
    */
-  $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): runtime.Types.Utils.JsPromise<runtime.Types.Utils.UnwrapTuple<P>>
+  $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: { maxWait?: number, timeout?: number, isolationLevel?: Prisma.TransactionIsolationLevel }): runtime.Types.Utils.JsPromise<runtime.Types.Utils.UnwrapTuple<P>>
 
   $transaction<R>(fn: (prisma: Omit<PrismaClient, runtime.ITXClientDenyList>) => runtime.Types.Utils.JsPromise<R>, options?: { maxWait?: number, timeout?: number, isolationLevel?: Prisma.TransactionIsolationLevel }): runtime.Types.Utils.JsPromise<R>
 
@@ -195,6 +207,16 @@ export interface PrismaClient<
     * ```
     */
   get bookmark(): Prisma.BookmarkDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.project`: Exposes CRUD operations for the **Project** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Projects
+    * const projects = await prisma.project.findMany()
+    * ```
+    */
+  get project(): Prisma.ProjectDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

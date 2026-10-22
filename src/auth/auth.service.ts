@@ -25,7 +25,7 @@ export class AuthService {
     //save the new user in the db
     try {
       const user = await this.prisma.user.create({
-        data: { email: dto.email, hash },
+        data: { email: dto.email, hash, firstName: dto.firstName },
         //choose only what you want to return
         // select: {
         //   id: true,
@@ -70,6 +70,49 @@ export class AuthService {
     }
 
     /**return user*/
+    return this.signToken(user.id, user.email);
+  }
+
+  /**
+   * Sign in through a verified Supabase identity (social OAuth or phone OTP).
+   * The SupabaseGuard already verified the access token and attached the user
+   * to the request, so the email here is trusted, not caller-supplied.
+   */
+  async socialLogin(supabaseUser: {
+    id: string;
+    email?: string | null;
+    user_metadata?: Record<string, unknown>;
+  }) {
+    const rawEmail =
+      supabaseUser.email ??
+      (typeof supabaseUser.user_metadata?.email === 'string'
+        ? (supabaseUser.user_metadata.email as string)
+        : null);
+    const email = rawEmail?.trim().toLowerCase();
+    if (!email) {
+      throw new ForbiddenException(
+        'We could not find an email for this account. Try a different sign-in method.',
+      );
+    }
+
+    const name =
+      (supabaseUser.user_metadata?.full_name as string | undefined) ||
+      (supabaseUser.user_metadata?.name as string | undefined) ||
+      undefined;
+
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return this.signToken(existing.id, existing.email);
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        hash: null,
+        firstName: name || null,
+      },
+    });
+
     return this.signToken(user.id, user.email);
   }
 
