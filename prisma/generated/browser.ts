@@ -27,3 +27,8 @@ export type User = Prisma.UserModel
  * 
  */
 export type Bookmark = Prisma.BookmarkModel
+/**
+ * Model Project
+ * 
+ */
+export type Project = Prisma.ProjectModel

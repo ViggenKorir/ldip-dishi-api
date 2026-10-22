@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { TestModule } from './test/test.module';
 import { AppController } from './app.controller';
 import { SupabaseModule } from './supabase/supabase.module';
+import { ProjectModule } from './project/project.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SupabaseModule } from './supabase/supabase.module';
     PrismaModule,
     TestModule,
     SupabaseModule,
+    ProjectModule,
   ],
   controllers: [AppController],
 })

@@ -10,4 +10,5 @@
  */
 export type * from './models/User'
 export type * from './models/Bookmark'
+export type * from './models/Project'
 export type * from './commonInputTypes'
