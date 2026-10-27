@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { SupabaseService } from 'src/supabase/supabase.service';
 
 @Injectable()
@@ -16,6 +16,14 @@ export class SupabaseGuard implements CanActivate {
     const token = authHeader.split(' ')[1]; //Bearer <token>
     if (!token) {
       return false;
+    }
+
+    if (!this.supabaseService.isConfigured()) {
+      // A clear 503 beats a 500 stack trace when the env is incomplete.
+      throw new ServiceUnavailableException({
+        code: 'SUPABASE_NOT_CONFIGURED',
+        message: 'Social sign-in is not configured on this server.',
+      });
     }
 
     const supabase = this.supabaseService.getAdminClient();

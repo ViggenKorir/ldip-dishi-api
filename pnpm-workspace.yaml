@@ -1,6 +1,7 @@
 allowBuilds:
-  '@prisma/engines': set this to true or false
-  '@swc/core': set this to true or false
-  argon2: set this to true or false
-  esbuild: set this to true or false
-  prisma: set this to true or false
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  '@swc/core': false
+  argon2: false
+  esbuild: false
+  prisma: true
