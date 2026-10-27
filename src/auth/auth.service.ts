@@ -1,137 +1,44 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { AuthDto } from './auth-dto';
-import * as argon from 'argon2';
-// import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
+
+const metadataString = (
+  metadata: Record<string, unknown>,
+  ...keys: string[]
+): string | null => {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+};
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private prisma: PrismaService,
-    private jwt: JwtService,
-    private config: ConfigService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  /**Method to signup */
-  async signup(dto: AuthDto) {
-    //generate the password hash
-    const hash = await argon.hash(dto.password);
+  async syncUser(authUser: SupabaseUser) {
+    const metadata = authUser.user_metadata ?? {};
+    const appMetadata = authUser.app_metadata ?? {};
+    const provider =
+      metadataString(appMetadata, 'provider') ??
+      authUser.identities?.find((identity) => identity.provider)?.provider ??
+      null;
+    const lastLoginAt = new Date();
 
-    //save the new user in the db
-    try {
-      const user = await this.prisma.user.create({
-        data: { email: dto.email, hash, firstName: dto.firstName },
-        //choose only what you want to return
-        // select: {
-        //   id: true,
-        //   email: true,
-        //   createdAt: true,
-        // },
-      });
-      delete user.hash;
-
-      //return the saved user
-      return user;
-    } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new ForbiddenException('Credentials taken');
-        }
-      }
-      throw error;
-    }
-  }
-
-  /**Method to login */
-  async login(dto: AuthDto) {
-    /**find user by email*/
-    const user = await this.prisma.user.findFirst({
-      where: {
-        email: dto.email,
+    return this.prisma.user.upsert({
+      where: { id: authUser.id },
+      create: {
+        id: authUser.id,
+        email: authUser.email?.trim().toLowerCase() ?? null,
+        phone: authUser.phone ?? null,
+        displayName: metadataString(metadata, 'full_name', 'name'),
+        avatarUrl: metadataString(metadata, 'avatar_url', 'picture'),
+        authProvider: provider,
+        lastLoginAt,
+        settings: { create: {} },
       },
+      update: { lastLoginAt },
     });
-
-    /**if user does not exist throw exception*/
-    if (!user) {
-      throw new ForbiddenException('Credentials incorrect');
-    }
-
-    /**compare passwords*/
-    const pwMatches = await argon.verify(user.hash, dto.password);
-
-    /**if password incorrect throw exception*/
-    if (!pwMatches) {
-      throw new ForbiddenException('Credentials incorrect');
-    }
-
-    /**return user*/
-    return this.signToken(user.id, user.email);
-  }
-
-  /**
-   * Sign in through a verified Supabase identity (social OAuth or phone OTP).
-   * The SupabaseGuard already verified the access token and attached the user
-   * to the request, so the email here is trusted, not caller-supplied.
-   */
-  async socialLogin(supabaseUser: {
-    id: string;
-    email?: string | null;
-    user_metadata?: Record<string, unknown>;
-  }) {
-    const rawEmail =
-      supabaseUser.email ??
-      (typeof supabaseUser.user_metadata?.email === 'string'
-        ? (supabaseUser.user_metadata.email as string)
-        : null);
-    const email = rawEmail?.trim().toLowerCase();
-    if (!email) {
-      throw new ForbiddenException(
-        'We could not find an email for this account. Try a different sign-in method.',
-      );
-    }
-
-    const name =
-      (supabaseUser.user_metadata?.full_name as string | undefined) ||
-      (supabaseUser.user_metadata?.name as string | undefined) ||
-      undefined;
-
-    const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return this.signToken(existing.id, existing.email);
-    }
-
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        hash: null,
-        firstName: name || null,
-      },
-    });
-
-    return this.signToken(user.id, user.email);
-  }
-
-  /**Method to sign token */
-  async signToken(
-    userId: string,
-    email: string,
-  ): Promise<{ access_token: string }> {
-    const payload = {
-      sub: userId,
-      email,
-    };
-    const secret = this.config.get('JWT_SECRET');
-
-    const token = await this.jwt.signAsync(payload, {
-      expiresIn: '15m',
-      secret: secret,
-    });
-
-    return {
-      access_token: token,
-    };
   }
 }

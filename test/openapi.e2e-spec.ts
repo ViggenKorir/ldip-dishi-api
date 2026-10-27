@@ -22,7 +22,10 @@ import {
 
 type OpenApiTestDoc = {
   components?: { securitySchemes?: Record<string, unknown> };
-  paths: Record<string, Record<string, { summary?: string; description?: string }>>;
+  paths: Record<
+    string,
+    Record<string, { summary?: string; description?: string }>
+  >;
 };
 
 describe('OpenAPI contract (e2e)', () => {
@@ -72,7 +75,7 @@ describe('OpenAPI contract (e2e)', () => {
   it('declares the bearer scheme and summaries for every operation', () => {
     const document = buildOpenApiDocument(app) as unknown as OpenApiTestDoc;
     expect(Object.keys(document.components?.securitySchemes ?? {})).toContain(
-      'nest-jwt',
+      'supabase-jwt',
     );
     const undocumented: string[] = [];
     for (const [path, operations] of Object.entries(document.paths)) {

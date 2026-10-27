@@ -1,256 +1,6 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/": {
-      "get": {
-        "operationId": "AppController_test",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Root liveness ping; superseded by /health/live",
-        "tags": [
-          "meta"
-        ]
-      }
-    },
-    "/auth/signup": {
-      "post": {
-        "description": "Superseded at pilot by Supabase-managed sign-up; kept for the running app.",
-        "operationId": "AuthController_signup",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AuthDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Create an email/password account (legacy path)",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/signin": {
-      "post": {
-        "operationId": "AuthController_signin",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AuthDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Exchange credentials for a Nest JWT (15 min)",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/social": {
-      "post": {
-        "description": "Send Authorization: Bearer <supabase access token>. 403 with a plain body if the token is invalid.",
-        "operationId": "AuthController_socialLogin",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Exchange a verified Supabase token for a Nest JWT",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/users/me": {
-      "get": {
-        "operationId": "UsersController_getMe",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Legacy profile read; superseded by GET /me in N2",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/bookmarks": {
-      "get": {
-        "operationId": "BookmarkController_GetAllBookmarks",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: list bookmarks",
-        "tags": [
-          "deprecated"
-        ]
-      },
-      "post": {
-        "operationId": "BookmarkController_createBookmark",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BookmarkDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: create bookmark",
-        "tags": [
-          "deprecated"
-        ]
-      }
-    },
-    "/bookmarks/{id}": {
-      "get": {
-        "operationId": "BookmarkController_getBookmarkById",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: bookmark by id",
-        "tags": [
-          "deprecated"
-        ]
-      },
-      "patch": {
-        "operationId": "BookmarkController_patchBookmark",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BookmarkPatchDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: patch bookmark",
-        "tags": [
-          "deprecated"
-        ]
-      },
-      "delete": {
-        "operationId": "BookmarkController_deleteBookmark",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: delete bookmark",
-        "tags": [
-          "deprecated"
-        ]
-      }
-    },
-    "/test": {
-      "get": {
-        "operationId": "TestController_test",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Echo route for smoke checks; superseded by /health",
-        "tags": [
-          "meta"
-        ]
-      }
-    },
-    "/projects": {
-      "get": {
-        "operationId": "ProjectController_getProjects",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: list demo projects",
-        "tags": [
-          "deprecated"
-        ]
-      }
-    },
-    "/projects/{id}": {
-      "get": {
-        "operationId": "ProjectController_getProject",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "DEPRECATED scaffold: demo project by id",
-        "tags": [
-          "deprecated"
-        ]
-      }
-    },
     "/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -588,11 +338,177 @@
           "health"
         ]
       }
+    },
+    "/auth/sync": {
+      "post": {
+        "description": "Creates the Dishi user and default settings on first login; later logins update only lastLoginAt.",
+        "operationId": "AuthController_sync",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "supabase-jwt": []
+          }
+        ],
+        "summary": "Synchronize the authenticated Supabase user",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "UsersController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "supabase-jwt": []
+          }
+        ],
+        "summary": "Get the authenticated Dishi profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/vendors": {
+      "get": {
+        "operationId": "VendorsController_list",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Search vendor, area or dish name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cuisine",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "Swahili",
+              "type": "string"
+            }
+          },
+          {
+            "name": "openNow",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "maxPickupMin",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pickup",
+                "price"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List vendors (public) with their dishes",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/vendors/{id}": {
+      "get": {
+        "operationId": "VendorsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get one vendor with its full menu",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/dishes/featured": {
+      "get": {
+        "operationId": "VendorsController_featured",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Featured, available dishes for Discover",
+        "tags": [
+          "vendors"
+        ]
+      }
+    },
+    "/dishes/{id}": {
+      "get": {
+        "operationId": "VendorsController_dish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get a dish together with its vendor",
+        "tags": [
+          "vendors"
+        ]
+      }
     }
   },
   "info": {
     "title": "Dishi API",
-    "description": "The Dishi backend. Conventions:\n\n- Money is **integer KES**; no decimals anywhere.\n- Time is **UTC in the database**, `Africa/Nairobi` at the edge.\n- Phones are **E.164** (`+2547XXXXXXXX`).\n- Lists return `{ data, page: { nextCursor, hasMore } }` (cursor) or `{ data, page: { limit, offset, total } }` for admin tables.\n- Errors are RFC 7807 `application/problem+json` with a stable `code`: VALIDATION_FAILED, UNAUTHENTICATED, PERMISSION_DENIED, MFA_REQUIRED, STEP_UP_REQUIRED, ACCOUNT_SUSPENDED, NOT_FOUND, ORDER_STATE_CONFLICT, ITEM_SOLD_OUT, STORE_NOT_ACCEPTING, SLOT_FULL, COUPON_INVALID, PAYMENT_AMOUNT_MISMATCH, IDEMPOTENCY_CONFLICT, LAST_SUPERADMIN, PERMISSION_ESCALATION, RATE_LIMITED.\n- `X-Request-Id` is accepted and echoed; every error carries it.\n- `Idempotency-Key` is required on money-moving POSTs (from N5).\n- `X-Dishi-Context` (`customer`, `vendor:<uuid>`, `platform`) selects the active actor context and is re-validated on every request (from N2).\n\nIdentity is a Nest-issued JWT obtained from `POST /auth/signin` or the social hand-off; `Authorization: Bearer <token>`.",
+    "description": "The Dishi backend. Conventions:\n\n- Money is **integer KES**; no decimals anywhere.\n- Time is **UTC in the database**, `Africa/Nairobi` at the edge.\n- Phones are **E.164** (`+2547XXXXXXXX`).\n- Lists return `{ data, page: { nextCursor, hasMore } }` (cursor) or `{ data, page: { limit, offset, total } }` for admin tables.\n- Errors are RFC 7807 `application/problem+json` with a stable `code`: VALIDATION_FAILED, UNAUTHENTICATED, PERMISSION_DENIED, MFA_REQUIRED, STEP_UP_REQUIRED, ACCOUNT_SUSPENDED, NOT_FOUND, ORDER_STATE_CONFLICT, ITEM_SOLD_OUT, STORE_NOT_ACCEPTING, SLOT_FULL, COUPON_INVALID, PAYMENT_AMOUNT_MISMATCH, IDEMPOTENCY_CONFLICT, LAST_SUPERADMIN, PERMISSION_ESCALATION, RATE_LIMITED.\n- `X-Request-Id` is accepted and echoed; every error carries it.\n- `Idempotency-Key` is required on money-moving POSTs (from N5).\n- `X-Dishi-Context` (`customer`, `vendor:<uuid>`, `platform`) selects the active actor context and is re-validated on every request (from N2).\n\nIdentity is verified through Supabase Auth; call `POST /auth/sync` to synchronize the local profile.",
     "version": "0.1.0",
     "contact": {}
   },
@@ -603,62 +519,23 @@
     },
     {
       "name": "auth",
-      "description": "Sign-up, sign-in and the social hand-off (legacy paths)"
+      "description": "Supabase Auth profile synchronization"
     },
     {
       "name": "users",
-      "description": "Legacy profile endpoint; superseded by /me in N2"
-    },
-    {
-      "name": "meta",
-      "description": "Echo/debug routes; being retired"
-    },
-    {
-      "name": "deprecated",
-      "description": "Starter scaffolding (bookmarks, projects); not Dishi domain"
+      "description": "Authenticated user profile"
     }
   ],
   "servers": [],
   "components": {
     "securitySchemes": {
-      "nest-jwt": {
+      "supabase-jwt": {
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "type": "http",
-        "description": "Nest JWT (sub = nest user uuid). Paste one from POST /auth/signin."
+        "description": "Supabase Auth access token."
       }
     },
-    "schemas": {
-      "AuthDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "wanjiru@example.co.ke"
-          },
-          "password": {
-            "type": "string",
-            "example": "s3cret-passphrase",
-            "minLength": 8
-          },
-          "firstName": {
-            "type": "string",
-            "example": "Wanjiru"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ]
-      },
-      "BookmarkDto": {
-        "type": "object",
-        "properties": {}
-      },
-      "BookmarkPatchDto": {
-        "type": "object",
-        "properties": {}
-      }
-    }
+    "schemas": {}
   }
 }

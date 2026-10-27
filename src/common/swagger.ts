@@ -37,8 +37,7 @@ export const buildOpenApiDocument = (app: INestApplication) => {
           'selects the active actor context and is re-validated on every ' +
           'request (from N2).',
         '',
-        'Identity is a Nest-issued JWT obtained from `POST /auth/signin` or ' +
-        'the social hand-off; `Authorization: Bearer <token>`.',
+        'Identity is verified through Supabase Auth; call `POST /auth/sync` to synchronize the local profile.',
       ].join('\n'),
     )
     .addBearerAuth(
@@ -47,18 +46,13 @@ export const buildOpenApiDocument = (app: INestApplication) => {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         description:
-          'Nest JWT (sub = nest user uuid). Paste one from POST /auth/signin.',
+          'Supabase Auth access token.',
       },
-      'nest-jwt',
+      'supabase-jwt',
     )
     .addTag('health', 'Liveness and readiness; public, unthrottled')
-    .addTag('auth', 'Sign-up, sign-in and the social hand-off (legacy paths)')
-    .addTag('users', 'Legacy profile endpoint; superseded by /me in N2')
-    .addTag('meta', 'Echo/debug routes; being retired')
-    .addTag(
-      'deprecated',
-      'Starter scaffolding (bookmarks, projects); not Dishi domain',
-    )
+    .addTag('auth', 'Supabase Auth profile synchronization')
+    .addTag('users', 'Authenticated user profile')
     .build();
 
   return SwaggerModule.createDocument(app, config);
