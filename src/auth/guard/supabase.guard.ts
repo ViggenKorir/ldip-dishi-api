@@ -1,4 +1,12 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Request } from 'express';
 import { SupabaseService } from 'src/supabase/supabase.service';
 
 @Injectable()
@@ -6,31 +14,28 @@ export class SupabaseGuard implements CanActivate {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user?: SupabaseUser }>();
+    const authorization = request.headers.authorization;
+    const bearer = authorization && /^Bearer\s+(\S+)$/i.exec(authorization);
 
-    if (!authHeader) {
-      return false;
+    if (!bearer) throw new UnauthorizedException();
+
+    if (!this.supabaseService.isConfigured()) {
+      throw new ServiceUnavailableException({
+        code: 'SUPABASE_NOT_CONFIGURED',
+        message: 'Authentication is not configured on this server.',
+      });
     }
 
-    const token = authHeader.split(' ')[1]; //Bearer <token>
-    if (!token) {
-      return false;
-    }
+    const { data, error } = await this.supabaseService
+      .getAdminClient()
+      .auth.getUser(bearer[1]);
 
-    const supabase = this.supabaseService.getAdminClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
+    if (error || !data.user) throw new UnauthorizedException();
 
-    if (error || !user) {
-      return false;
-    }
-
-    /**Attach user to request for use in controllers */
-    request.user = user;
-
+    request.user = data.user;
     return true;
   }
 }

@@ -1,161 +1,127 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { PrismaClient } from 'prisma/generated/client';
-import { Decimal } from '@prisma/client/runtime/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import * as dotenv from 'dotenv';
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/client";
+import { VENDORS } from "./mock-vendors";
 
-/**Explicitly load .env */
-dotenv.config();
-
-/**PRISMA CONFIG VARIABLES */
-/**Get the db connection string from .env */
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-/**Instantiate adapter here */
-const adapter = new PrismaPg(pool);
+// Seed over the DIRECT connection (port 5432), not the pgbouncer pooler.
+// Prisma 6: replace the adapter lines with `new PrismaClient()`.
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
 const prisma = new PrismaClient({ adapter });
 
-/** MAIN SEED FUNCTION */
-async function seed() {
-  console.log('Starting the seed process...');
+const slug = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-  /** Clear existing data to prevent duplicates*/
-  await prisma.$transaction([
-    prisma.project.deleteMany(),
-    prisma.bookmark.deleteMany(),
-    prisma.user.deleteMany(),
-  ]);
-  console.log('Database cleared.');
+const AMENITY_LABELS: Record<string, string> = {
+  wifi: "Wi-Fi",
+  indoor: "Indoor seating",
+  takeaway: "Takeaway",
+};
 
-  /**SEED THE NEW DATA */
-  /**Creating Users with nested Bookmarks */
-  // const user1 = await prisma.user.create({
-  //   data: {
-  //     email: 'john.doe@example.com',
-  //     hash: '$2b$12$R9h/lIPzIZf.3AnYwzL18eG.I0U4Y3.p0L.n9v6E6bE2L9sZ.7.mG', // Mock hash
-  //     firstName: 'John',
-  //     lastName: 'Doe',
-  //     bookmarks: {
-  //       create: [
-  //         {
-  //           title: 'Prisma Docs',
-  //           description: 'Everything you need to know about Prisma ORM',
-  //           link: 'https://www.prisma.io/docs',
-  //         },
-  //         {
-  //           title: 'GitHub',
-  //           description: 'My code repositories',
-  //           link: 'https://github.com/johndoe',
-  //         },
-  //       ],
-  //     },
-  //   },
-  // });
-
-  /**Seed users */
-  const user1 = await prisma.user.create({
-    data: {
-      email: 'alex@example.com',
-      hash: '$2b$12$mockhash123456789',
-      firstName: 'Alex',
-      lastName: 'Anderson',
-    },
+async function main() {
+  // Hub
+  const hub = await prisma.hub.upsert({
+    where: { slug: "westlands" },
+    create: { name: "Westlands", slug: "westlands" },
+    update: {},
   });
 
-  const user2 = await prisma.user.create({
-    data: {
-      email: 'sarah@example.com',
-      hash: '$2b$12$mockhash987654321',
-      firstName: 'Sarah',
-      lastName: 'Jenkins',
+  // Lookups
+  const cuisineNames = [...new Set(VENDORS.flatMap((v) => v.cuisines as string[]))];
+  for (const name of cuisineNames) {
+    await prisma.cuisine.upsert({
+      where: { id: slug(name) },
+      create: { id: slug(name), name },
+      update: { name },
+    });
+  }
+  for (const [id, label] of Object.entries(AMENITY_LABELS)) {
+    await prisma.amenity.upsert({ where: { id }, create: { id, label }, update: { label } });
+  }
+
+  for (const v of VENDORS) {
+    const data = {
+      name: v.name,
+      area: v.area,
+      openNow: v.openNow,
+      hubId: hub.id,
+      description: v.description ?? null,
+      hoursText: v.hours ?? null,
+      address: v.address ?? null,
+      pickupInstructions: v.pickupInstructions ?? null,
+      tags: v.tags ?? [],
+      prepTimeMin: v.pickupInMin,
+      pinX: v.pin.x,
+      pinY: v.pin.y,
+    };
+    const cuisineRefs = (v.cuisines as string[]).map((c) => ({ id: slug(c) }));
+    const amenityRefs = v.amenities.map((id) => ({ id }));
+
+    await prisma.vendor.upsert({
+      where: { id: v.id },
+      create: {
+        id: v.id,
+        ...data,
+        cuisines: { connect: cuisineRefs },
+        amenities: { connect: amenityRefs },
+      },
+      update: {
+        ...data,
+        cuisines: { set: cuisineRefs },
+        amenities: { set: amenityRefs },
+      },
+    });
+
+    // Menu categories, in order of first appearance
+    const categories = [...new Set(v.dishes.map((d) => d.category ?? "Mains"))];
+    const categoryIds = new Map<string, string>();
+    for (const [i, name] of categories.entries()) {
+      const c = await prisma.menuCategory.upsert({
+        where: { vendorId_name: { vendorId: v.id, name } },
+        create: { vendorId: v.id, name, sortOrder: i },
+        update: { sortOrder: i },
+      });
+      categoryIds.set(name, c.id);
+    }
+
+    for (const [i, d] of v.dishes.entries()) {
+      const dish = {
+        vendorId: v.id,
+        categoryId: categoryIds.get(d.category ?? "Mains")!,
+        name: d.name,
+        price: d.price,
+        description: d.description ?? null,
+        featured: d.featured ?? false,
+        popular: d.popular ?? false,
+        soldOut: d.soldOut ?? false,
+        sortOrder: i,
+      };
+      await prisma.dish.upsert({
+        where: { id: d.id },
+        create: { id: d.id, ...dish },
+        update: dish,
+      });
+    }
+    console.log(`Seeded ${v.name} (${v.dishes.length} dishes, ${categories.length} categories)`);
+  }
+
+  await prisma.promoBanner.upsert({
+    where: { id: "seed-welcome" },
+    create: {
+      id: "seed-welcome",
+      title: "Skip the lunch queue",
+      subtitle: "Pre-order, pay with M-Pesa, pick up when it is ready.",
+      ctaLabel: "Browse vendors",
+      ctaHref: "/discover",
     },
-  });
-
-  /**Seed bookmarks */
-  const bookmark1 = await prisma.bookmark.create({
-    data: {
-      title: 'Next.js Documentation',
-      description: 'The React Framework for the Web',
-      link: 'https://nextjs.org/docs',
-      user: {
-        connect: { id: user1.id },
-      },
-    },
-  });
-
-  const bookmark2 = await prisma.bookmark.create({
-    data: {
-      title: 'Tailwind CSS',
-      description:
-        'Rapidly build modern websites without ever leaving your HTML',
-      link: 'https://tailwindcss.com',
-      user: {
-        connect: { id: user1.id },
-      },
-    },
-  });
-
-  const bookmark3 = await prisma.bookmark.create({
-    data: {
-      title: 'Stack Overflow',
-      description: 'For when I get stuck',
-      link: 'https://stackoverflow.com',
-      user: {
-        connect: { id: user2.id },
-      },
-    },
-  });
-
-  const bookmark4 = await prisma.bookmark.create({
-    data: {
-      title: 'Prisma Twitter',
-      description: 'Latest updates from the Prisma team',
-      link: 'https://twitter.com/prisma',
-      user: {
-        connect: { id: user2.id },
-      },
-    },
-  });
-
-  console.log('data seeded successfully!');
-
-  await prisma.project.createMany({
-    data: [
-      {
-        name: 'Website redesign',
-        description: 'Refresh the marketing site with the new brand.',
-        status: 'active',
-        updatedAt: new Date('2026-09-28T10:00:00.000Z'),
-      },
-      {
-        name: 'Mobile app',
-        description: 'Ship the first version of the iOS and Android apps.',
-        status: 'active',
-        updatedAt: new Date('2026-09-20T10:00:00.000Z'),
-      },
-      {
-        name: 'Billing migration',
-        description: 'Move subscriptions to the new payment provider.',
-        status: 'paused',
-        updatedAt: new Date('2026-08-14T10:00:00.000Z'),
-      },
-      {
-        name: 'Onboarding emails',
-        description: 'A welcome email sequence for new sign-ups.',
-        status: 'done',
-        updatedAt: new Date('2026-07-02T10:00:00.000Z'),
-      },
-    ],
+    update: {},
   });
 }
 
-seed()
+main()
   .catch((e) => {
     console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-    await pool.end();
-  });
+  .finally(() => prisma.$disconnect());

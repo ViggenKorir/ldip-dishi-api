@@ -1,5 +1,15 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// =============================================================================
+// Dishi: complete Prisma schema (replaces the old User / Bookmark / Project
+// library-system schema entirely).
+//
+// Conventions
+//  - Money is whole Kenyan shillings (Int). Never floats.
+//  - User.id equals the Supabase auth.users id (uuid). Supabase owns passwords,
+//    OTPs, Google/Apple identities and sessions; this table is the app profile.
+//  - Orders and payments are kept up to 7 years for audit, WITHOUT the person:
+//    deleting a user sets Order.userId to NULL (SetNull) and the anonymise job
+//    clears contactPhone / payerPhone. No name is ever stored on an order.
+// =============================================================================
 
 generator client {
   provider = "prisma-client"
@@ -8,54 +18,461 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Prisma 7: the connection URL lives in prisma.config.ts, not here.
+  // Prisma 6: add  url = env("DATABASE_URL")  and  directUrl = env("DIRECT_URL")
 }
 
-//Declaring models
+// ---------------------------------------------------------------- enums ------
+
+enum Role {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+enum VendorRole {
+  OWNER
+  MANAGER
+  KITCHEN
+}
+
+enum VendorStatus {
+  PENDING // applied, awaiting review
+  ACTIVE
+  SUSPENDED
+}
+
+enum FulfillmentType {
+  PICKUP
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID // paid, waiting for the vendor to accept
+  ACCEPTED
+  PREPARING
+  READY // ready for pickup / handover
+  COMPLETED
+  CANCELLED // by customer
+  REJECTED // by vendor
+  EXPIRED // payment never completed
+}
+
+enum PaymentMethod {
+  MPESA
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PAYOUT
+  PROMO
+  SYSTEM
+}
+
+enum DeletionStatus {
+  REQUESTED // user asked
+  CONFIRMED // confirmed by SMS code
+  COMPLETED // account erased, orders anonymised
+  CANCELLED
+}
+
+enum Theme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+// ------------------------------------------------------------ geography ------
+
+/// A commercial or campus hub customers pick as their region (e.g. Westlands).
+model Hub {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  city      String   @default("Nairobi")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users   User[]
+  vendors Vendor[]
+  banners PromoBanner[]
+}
+
+// ---------------------------------------------------------------- users ------
+
 model User {
-  id String @id @default(uuid())
+  id           String    @id @db.Uuid // = Supabase auth.users.id
+  role         Role      @default(CUSTOMER)
+  phone        String?   @unique // E.164, phone-first accounts
+  email        String?   @unique // present for Google / Apple / email sign-ins
+  displayName  String?
+  avatarUrl    String?
+  authProvider String? // phone | email | google | apple
+  hubId        String?
+  mpesaNumber  String? // number used to pay with M-Pesa
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
 
-  email     String  @unique
-  // Null for accounts created through a social provider (Supabase OAuth);
-  // password accounts always store an argon2 hash.
-  hash      String?
-  firstName String?
-  lastName  String?
+  hub              Hub?              @relation(fields: [hubId], references: [id], onDelete: SetNull)
+  settings         UserSettings?
+  memberships      VendorMember[]
+  orders           Order[]
+  favoriteVendors  FavoriteVendor[]
+  favoriteDishes   FavoriteDish[]
+  notifications    Notification[]
+  deletionRequests DeletionRequest[]
 
-  bookmarks Bookmark[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // @@map("users")
+  @@index([hubId])
 }
 
-model Bookmark {
-  id String @id @default(uuid())
+/// One row per user: Settings page (Appearance, Language & region, Notifications).
+model UserSettings {
+  userId             String   @id @db.Uuid
+  theme              Theme    @default(SYSTEM)
+  language           String   @default("en")
+  regionCode         String   @default("KE")
+  notifyOrderUpdates Boolean  @default(true)
+  notifyPromos       Boolean  @default(false)
+  notifyBySms        Boolean  @default(true)
+  notifyByPush       Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
 
-  title       String
-  description String?
-  link        String
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // @@map("bookmarks")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum ProjectStatus {
-  active
-  paused
-  done
+/// Account deletion is a request confirmed by SMS (Settings > Danger zone).
+model DeletionRequest {
+  id          String         @id @default(cuid())
+  userId      String?        @db.Uuid
+  status      DeletionStatus @default(REQUESTED)
+  requestedAt DateTime       @default(now())
+  confirmedAt DateTime?
+  completedAt DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
 }
 
-model Project {
-  id          String        @id @default(uuid())
+// -------------------------------------------------------------- vendors ------
+
+model Vendor {
+  id                 String       @id @default(cuid()) // seeded vendors use readable slugs
+  name               String
+  status             VendorStatus @default(ACTIVE)
+  openNow            Boolean      @default(true) // vendor's "accepting orders" switch on the KDS
+  hubId              String?
+  area               String // display line, e.g. "Westlands, Mpaka Rd"
+  address            String?
+  description        String?
+  phone              String?
+  logoUrl            String?
+  coverUrl           String?
+  pickupInstructions String?
+  hoursText          String? // display text, e.g. "8:00 AM to 2:00 PM"
+  tags               String[] // e.g. "Home cooking"
+  prepTimeMin        Int          @default(20) // typical minutes until pickup is ready
+  commissionBps      Int          @default(1000) // Dishi commission, basis points (1000 = 10%)
+  latitude           Float?
+  longitude          Float?
+  pinX               Float? // % position on the area map until real maps ship
+  pinY               Float?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  hub        Hub?            @relation(fields: [hubId], references: [id], onDelete: SetNull)
+  cuisines   Cuisine[]
+  amenities  Amenity[]
+  members    VendorMember[]
+  hours      VendorHours[]
+  categories MenuCategory[]
+  dishes     Dish[]
+  slots      PickupSlot[]
+  orders     Order[]
+  payouts    Payout[]
+  favorites  FavoriteVendor[]
+
+  @@index([hubId])
+  @@index([status, openNow])
+}
+
+/// Who can run a vendor's dashboard / KDS, and in what capacity.
+model VendorMember {
+  id        String     @id @default(cuid())
+  vendorId  String
+  userId    String     @db.Uuid
+  role      VendorRole @default(OWNER)
+  createdAt DateTime   @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, userId])
+  @@index([userId])
+}
+
+/// Structured opening hours. dayOfWeek 0 = Sunday. Times are minutes after midnight (EAT).
+model VendorHours {
+  id        String @id @default(cuid())
+  vendorId  String
+  dayOfWeek Int
+  opensAt   Int
+  closesAt  Int
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, dayOfWeek, opensAt])
+}
+
+/// Lookup tables so the filters on Discover are data, not hardcoded.
+model Cuisine {
+  id      String   @id // slug: "swahili", "fast-food"
+  name    String   @unique // "Swahili", "Fast food"
+  vendors Vendor[]
+}
+
+model Amenity {
+  id      String   @id // "wifi", "indoor", "takeaway"
+  label   String   @unique
+  vendors Vendor[]
+}
+
+// ----------------------------------------------------------------- menu ------
+
+model MenuCategory {
+  id        String @id @default(cuid())
+  vendorId  String
+  name      String
+  sortOrder Int    @default(0)
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  dishes Dish[]
+
+  @@unique([vendorId, name])
+}
+
+model Dish {
+  id          String   @id @default(cuid()) // seeded dishes use readable slugs
+  vendorId    String
+  categoryId  String
   name        String
-  description String
-  status      ProjectStatus
-  updatedAt   DateTime      @updatedAt
-  createdAt   DateTime      @default(now())
+  description String?
+  price       Int // KES
+  imageUrl    String?
+  prepTimeMin Int? // overrides Vendor.prepTimeMin when set
+  featured    Boolean  @default(false) // "Available right now" on Discover
+  popular     Boolean  @default(false) // "Popular today" on the vendor page
+  soldOut     Boolean  @default(false) // kitchen toggle on the KDS
+  active      Boolean  @default(true) // false = removed from the menu, kept for order history
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendor    Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category  MenuCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderRows OrderItem[]
+  favorites FavoriteDish[]
+
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([featured, soldOut])
+}
+
+// --------------------------------------------------------------- orders ------
+
+/// A bookable pickup window with a capacity cap, so a lunch rush can't overload a kitchen.
+model PickupSlot {
+  id       String   @id @default(cuid())
+  vendorId String
+  startsAt DateTime
+  endsAt   DateTime
+  capacity Int      @default(10)
+  booked   Int      @default(0)
+
+  vendor Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([vendorId, startsAt])
+  @@index([startsAt])
+}
+
+model Order {
+  id            String          @id @default(cuid())
+  orderNumber   Int             @unique @default(autoincrement()) // shown at the pickup window
+  userId        String?         @db.Uuid // NULL after account deletion (audit copy kept)
+  vendorId      String
+  status        OrderStatus     @default(PENDING_PAYMENT)
+  fulfillment   FulfillmentType @default(PICKUP)
+  pickupSlotId  String?
+  scheduledFor  DateTime? // null = as soon as possible
+  deliveryNote  String? // drop-off description for DELIVERY (no GPS collected)
+  contactPhone  String? // cleared by the anonymise job
+  note          String?
+  subtotal      Int
+  serviceFee    Int             @default(0)
+  deliveryFee   Int             @default(0)
+  total         Int
+  cancelReason  String?
+  payoutId      String?
+  placedAt      DateTime        @default(now())
+  acceptedAt    DateTime?
+  readyAt       DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  updatedAt     DateTime        @updatedAt
+
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  vendor     Vendor      @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  pickupSlot PickupSlot? @relation(fields: [pickupSlotId], references: [id], onDelete: SetNull)
+  payout     Payout?     @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  items      OrderItem[]
+  payments   Payment[]
+
+  @@index([userId, placedAt])
+  @@index([vendorId, status, placedAt])
+  @@index([pickupSlotId])
+  @@index([payoutId])
+}
+
+/// Prices and names are snapshotted so menu edits never rewrite history.
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  dishId    String?
+  name      String
+  unitPrice Int
+  quantity  Int
+  note      String?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dish  Dish? @relation(fields: [dishId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
+
+// ------------------------------------------------------------- payments ------
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  amount            Int
+  payerPhone        String? // M-Pesa number charged; cleared by the anonymise job
+  mpesaCheckoutId   String?       @unique // Daraja CheckoutRequestID (STK Push)
+  mpesaReceipt      String?       @unique // e.g. "SGL1A2B3C4"
+  cardProviderRef   String? // provider reference once a card gateway is chosen
+  failureReason     String?
+  rawCallback       Json? // raw provider callback, for audit and disputes
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([status])
+}
+
+/// Earnings & Payouts page: a settlement of completed, paid orders for a period.
+model Payout {
+  id          String       @id @default(cuid())
+  vendorId    String
+  periodStart DateTime
+  periodEnd   DateTime
+  gross       Int // sum of order subtotals in the period
+  commission  Int // Dishi's cut
+  net         Int // gross - commission
+  status      PayoutStatus @default(PENDING)
+  mpesaRef    String? // B2C / transfer reference
+  paidAt      DateTime?
+  createdAt   DateTime     @default(now())
+
+  vendor Vendor  @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  orders Order[]
+
+  @@index([vendorId, periodEnd])
+  @@index([status])
+}
+
+// ------------------------------------------------- engagement and content ------
+
+/// Discover promo banner: fully data-driven so admins edit it without a deploy.
+model PromoBanner {
+  id        String    @id @default(cuid())
+  hubId     String? // null = shown in every hub
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  ctaLabel  String?
+  ctaHref   String?
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  hub Hub? @relation(fields: [hubId], references: [id], onDelete: SetNull)
+
+  @@index([active, sortOrder])
+}
+
+/// Replaces the old Bookmark model: saved vendors and dishes.
+model FavoriteVendor {
+  userId    String   @db.Uuid
+  vendorId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@id([userId, vendorId])
+  @@index([vendorId])
+}
+
+model FavoriteDish {
+  userId    String   @db.Uuid
+  dishId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dish Dish @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@id([userId, dishId])
+  @@index([dishId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String
+  body      String?
+  orderId   String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
 }

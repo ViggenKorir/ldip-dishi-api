@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   HttpCode,
   HttpStatus,
@@ -7,43 +6,27 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
-import { AuthDto } from './auth-dto';
 import { SupabaseGuard } from './guard';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-  /**Signup */
-  @Post('signup')
-  signup(@Body() dto: AuthDto) {
-    return this.authService.signup(dto);
-  }
-
-  /**Login */
-  @HttpCode(HttpStatus.OK) //CUSTOM STATUS CODE
-  @Post('signin')
-  signin(@Body() dto: AuthDto) {
-    return this.authService.login(dto);
-  }
-
-  /**
-   * Social (Supabase OAuth) sign-in. The access token is verified by
-   * SupabaseGuard, which attaches the Supabase user to the request; we then
-   * find-or-create the local user and return our own JWT.
-   */
   @HttpCode(HttpStatus.OK)
   @UseGuards(SupabaseGuard)
-  @Post('social')
-  socialLogin(@Req() req: Request) {
-    return this.authService.socialLogin(
-      req.user as {
-        id: string;
-        email?: string | null;
-        user_metadata?: Record<string, unknown>;
-      },
-    );
+  @ApiBearerAuth('supabase-jwt')
+  @ApiOperation({
+    summary: 'Synchronize the authenticated Supabase user',
+    description:
+      'Creates the Dishi user and default settings on first login; later logins update only lastLoginAt.',
+  })
+  @Post('sync')
+  sync(@Req() req: Request & { user: SupabaseUser }) {
+    return this.authService.syncUser(req.user);
   }
 }

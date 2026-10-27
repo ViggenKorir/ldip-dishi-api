@@ -1,37 +1,31 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  /**set the app to use validators globally */
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
 
-  /**Comma-separated list of allowed frontend origins (credentials need explicit origins, not '*') */
-  const allowedOrigins = (
-    process.env.CORS_ORIGINS || 'http://localhost:3000'
-  )
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
-  /**Enable CORS */
   app.enableCors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    origin: [process.env.FRONTEND_URL, 'http://localhost:3000'].filter(
+      Boolean,
+    ) as string[],
     credentials: true,
   });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  /** Get the port from environment variables, with a fallback */
-  const port = Number(process.env.PORT) || 4000;
+  const config = new DocumentBuilder()
+    .setTitle('Dishi API')
+    .setDescription('Vendors, menus, orders, payments and payouts for Dishi')
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'supabase-jwt',
+    )
+    .build();
+  SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, config));
 
-  await app.listen(port, '0.0.0.0');
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  await app.listen(process.env.PORT ?? 3001, '0.0.0.0'); // Render needs 0.0.0.0 and $PORT
 }
 bootstrap();
