@@ -1,7 +1,8 @@
 import { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 import { readFileSync } from 'node:fs';
 import { Test } from '@nestjs/testing';
+// Supertest exports a callable CommonJS function.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import {

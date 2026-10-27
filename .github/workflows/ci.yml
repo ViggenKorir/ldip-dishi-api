@@ -21,11 +21,14 @@ jobs:
           --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nest?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/nest?schema=public
       JWT_SECRET: ci-only-not-a-secret
       CORS_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
       - uses: actions/setup-node@v4
         with:
           node-version: 20
