@@ -82,9 +82,10 @@ The Prisma schema contains Dishi's models. Existing migration files are immutabl
 6. Test checklist: `GET /vendors` returns 8 vendors; `GET /vendors/mama-njeris-kitchen` returns 16 dishes across 4 categories; `chicken pilau` shows `soldOut: true`; `GET /dishes/featured` excludes sold-out items; `GET /dishes/nope` returns 404.
 
 ## 4. Deploy on Render
-
-- Build: `npm ci && npx prisma generate && npm run build`
-- Start: `npx prisma migrate deploy && node dist/src/main` (it is `dist/src/main` because `prisma/seed` is compiled too, which moves the output root. If your build puts `main.js` at `dist/main.js`, use that.)
+- Build: `corepack enable && pnpm install --frozen-lockfile && pnpm build` (`pnpm build` generates the ignored Prisma client before compiling Nest).
+- Set both `DATABASE_URL` (Supabase pooler, port 6543) and `DIRECT_URL` (direct connection, port 5432) in Render before building. Prisma config requires `DIRECT_URL` even for client generation; build does not migrate or connect to the database.
+- Pre-deploy migration: `pnpm prisma migrate deploy` (uses `DIRECT_URL`; run only after the migration SQL and backup/PITR have been approved).
+- Start: `pnpm start:prod` (`node dist/src/main`).
 - Seed once from your machine (it uses `DIRECT_URL`), not on every deploy.
 - CORS is already set in the kit's `main.ts` from `FRONTEND_URL`. The app also listens on `0.0.0.0:$PORT`, which Render requires.
 - Free Render instances sleep; first request can take ~30s.
