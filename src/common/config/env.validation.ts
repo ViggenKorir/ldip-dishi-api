@@ -43,8 +43,41 @@ export const validateEnv = (
     }
   }
 
-  if (typeof config.CORS_ORIGINS === 'string' && config.CORS_ORIGINS.includes('*')) {
-    errors.push('CORS_ORIGINS must be an explicit allow-list, never *');
+  const corsOrigins = [
+    ...(typeof config.FRONTEND_URL === 'string' ? [config.FRONTEND_URL] : []),
+    ...(typeof config.CORS_ORIGINS === 'string'
+      ? config.CORS_ORIGINS.split(',')
+      : []),
+  ]
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (isProd && corsOrigins.length === 0) {
+    errors.push(
+      'FRONTEND_URL or CORS_ORIGINS must contain the production frontend origin',
+    );
+  }
+
+  for (const origin of corsOrigins) {
+    if (origin.includes('*')) {
+      errors.push('CORS origins must be an explicit allow-list, never *');
+      continue;
+    }
+
+    try {
+      const parsed = new URL(origin);
+      if (
+        !['http:', 'https:'].includes(parsed.protocol) ||
+        parsed.origin !== origin.replace(/\/$/, '') ||
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash
+      ) {
+        errors.push(`Invalid CORS origin: ${origin}`);
+      }
+    } catch {
+      errors.push(`Invalid CORS origin: ${origin}`);
+    }
   }
 
   if (errors.length) {
