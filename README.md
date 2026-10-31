@@ -129,7 +129,8 @@ rollback guidance.
 | `DIRECT_URL` | Prisma migrations and seed | Direct PostgreSQL connection, normally port 5432 |
 | `SUPABASE_URL` | Server-side Auth token verification | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase admin client only | Never expose to browser or `NEXT_PUBLIC_*` |
-| `FRONTEND_URL` | API CORS allow-list | Exact production web origin |
+| `CORS_ORIGINS` | API CORS allow-list | Comma-separated exact web origins; required in production |
+| `FRONTEND_URL` | API CORS allow-list | Single-origin compatibility setting; exact production web origin |
 
 Do not paste connection strings or keys into source, CI output, logs, or this
 documentation. `.env*` is gitignored (except the example template).
@@ -176,8 +177,10 @@ pnpm prisma migrate deploy
 
 The app constructs Prisma with `DATABASE_URL`; migration configuration uses
 `DIRECT_URL`. At startup Nest listens on `0.0.0.0:$PORT` (default port 3001).
-Configure `FRONTEND_URL` to the exact frontend origin; localhost:3000 is also
-allowed for development.
+Configure `CORS_ORIGINS` to the exact frontend origin, such as
+`https://dishi-app.vercel.app` (or set the compatible `FRONTEND_URL` variable).
+Never include a path or use `*`. `http://localhost:3000` is additionally allowed
+outside production.
 
 See [`SETUP.md`](SETUP.md) for the existing setup notes. Review these notes
 against the current workflow before copying any historical commands: legacy

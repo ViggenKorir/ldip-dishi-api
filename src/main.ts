@@ -7,10 +7,22 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const configuredOrigins = [
+    process.env.FRONTEND_URL,
+    ...(process.env.CORS_ORIGINS ?? '').split(','),
+  ]
+    .map((origin) => origin?.trim())
+    .filter((origin): origin is string => Boolean(origin))
+    .map((origin) => new URL(origin).origin);
+  const allowedOrigins = [
+    ...new Set([
+      ...configuredOrigins,
+      ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3000']),
+    ]),
+  ];
+
   app.enableCors({
-    origin: [process.env.FRONTEND_URL, 'http://localhost:3000'].filter(
-      Boolean,
-    ) as string[],
+    origin: allowedOrigins,
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
