@@ -1,5 +1,6 @@
 import {
   ExecutionContext,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { SupabaseService } from 'src/supabase/supabase.service';
 import { SupabaseGuard } from './supabase.guard';
 
 describe('SupabaseGuard', () => {
+  const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
   const authGetUser = jest.fn();
   const supabase = {
     isConfigured: jest.fn(),
@@ -32,6 +34,7 @@ describe('SupabaseGuard', () => {
     authGetUser.mockReset();
     supabase.isConfigured.mockReset();
     supabase.getAdminClient.mockClear();
+    warnSpy.mockClear();
   });
 
   it.each([undefined, 'Basic abc', 'Bearer'])(
@@ -67,6 +70,25 @@ describe('SupabaseGuard', () => {
       ServiceUnavailableException,
     );
     expect(supabase.getAdminClient).not.toHaveBeenCalled();
+  });
+
+  it('logs only safe verification metadata when Supabase rejects the token', async () => {
+    supabase.isConfigured.mockReturnValue(true);
+    authGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { name: 'AuthApiError', status: 401, code: 'invalid_token' },
+    });
+    const { context } = makeContext('Bearer diagnostic-test-token');
+
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+
+    const loggedMessage = warnSpy.mock.calls[0]?.[0];
+    expect(loggedMessage).toContain('"event":"supabase_token_verification_failed"');
+    expect(loggedMessage).toContain('"errorStatus":401');
+    expect(loggedMessage).toContain('"errorCode":"invalid_token"');
+    expect(loggedMessage).not.toContain('diagnostic-test-token');
   });
 
   it('attaches the verified Supabase user to the request', async () => {
