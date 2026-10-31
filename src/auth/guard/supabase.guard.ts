@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -11,6 +12,8 @@ import { SupabaseService } from 'src/supabase/supabase.service';
 
 @Injectable()
 export class SupabaseGuard implements CanActivate {
+  private readonly logger = new Logger(SupabaseGuard.name);
+
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,7 +36,18 @@ export class SupabaseGuard implements CanActivate {
       .getAdminClient()
       .auth.getUser(bearer[1]);
 
-    if (error || !data.user) throw new UnauthorizedException();
+    if (error || !data.user) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'supabase_token_verification_failed',
+          errorName: error?.name,
+          errorStatus: error?.status,
+          errorCode: error?.code,
+          userReturned: Boolean(data.user),
+        }),
+      );
+      throw new UnauthorizedException();
+    }
 
     request.user = data.user;
     return true;
